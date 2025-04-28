@@ -1885,6 +1885,53 @@ function make_keyboard() {
   keyboard.appendChild(backspace);
 }
 
+// Save the current game state to localStorage
+function saveGameState() {
+  const gameState = {
+    rows: rows.map(row => row.map(cell => ({
+      guess: cell.dataset.guess,
+      className: cell.className
+    }))),
+    keyMap: Object.fromEntries(
+      Object.entries(key_map).map(([key, element]) => [key, element.className])
+    ),
+    todaysDate: todays_utc_date
+  };
+  localStorage.setItem('shabdleGameState', JSON.stringify(gameState));
+}
+
+// Load the game state from localStorage
+function loadGameState() {
+  const savedState = JSON.parse(localStorage.getItem('shabdleGameState'));
+  if (savedState && savedState.todaysDate === todays_utc_date) {
+    rows = savedState.rows.map(savedRow => {
+      const tr = document.createElement('tr');
+      const row = [];
+      for (let i = 0; i < savedRow.length; i++) {
+        const td = document.createElement('td');
+        td.dataset.guess = savedRow[i].guess || '';
+        td.className = savedRow[i].className || '';
+        tr.appendChild(td);
+        row.push(td);
+      }
+      document.getElementById('grid').appendChild(tr);
+      return row;
+    });
+
+    // Restore keyboard state
+    Object.entries(savedState.keyMap).forEach(([key, className]) => {
+      if (key_map[key]) {
+        key_map[key].className = className || '';
+      }
+    });
+
+    render_rows();
+  } else {
+    // If no saved state or the date has changed, start a new game
+    rows = [];
+    add_row();
+  }
+}
 
 function add_row() {
   var tr = document.createElement('tr');
@@ -1899,6 +1946,7 @@ function add_row() {
   rows.push(row);
 
   render_rows();
+  saveGameState(); // Save state after adding a row
 }
 
 
@@ -1944,6 +1992,7 @@ function score_row(row) {
 
   if (win) make_share();
   else add_row();
+  saveGameState(); // Save state after scoring a row
 }
 
 
@@ -2105,7 +2154,7 @@ window.addEventListener('load',
       else
         needs_new = false;
     }
-    add_row();
+    loadGameState(); // Load saved state or start a new game
   };
   xhr.send(null);
 },
